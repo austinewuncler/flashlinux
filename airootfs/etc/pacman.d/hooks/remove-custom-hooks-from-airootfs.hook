@@ -1,0 +1,15 @@
+# remove from airootfs!
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Operation = Remove
+Type = Package
+Target = *
+
+[Action]
+Description = Removing custom pacman hooks that are only required during ISO build...
+When = PostTransaction
+Depends = sh
+Depends = coreutils
+Depends = grep
+Exec = /bin/sh -c "rm -- $(grep --fixed-strings --recursive --files-with-matches 'remove from airootfs' /etc/pacman.d/hooks/)"
