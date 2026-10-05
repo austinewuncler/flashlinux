@@ -106,6 +106,8 @@ confirm_wipe() {
 partition_disk() {
   log_step "Partitioning $DISK"
 
+  wipefs --all "$DISK"
+
   parted --script "$DISK" \
     mklabel gpt \
     mkpart "$BOOT_LABEL" fat32 1MiB "$BOOT_END" \
