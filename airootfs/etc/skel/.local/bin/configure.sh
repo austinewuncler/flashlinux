@@ -26,6 +26,7 @@ readonly PACKAGES=(
   btrfs-progs
   fish
   git
+  greetd
   intel-ucode
   networkmanager
   refind
@@ -120,7 +121,12 @@ install_bootloader() {
   echo "include $REFIND_THEME_INCLUDE" >>"$REFIND_DIR/refind.conf"
 }
 
+
 # --- Main --------------------------------------------------------------------
+
+setup_services() {
+	systemctl enable greetd.service
+}
 
 main() {
   configure_pacman
@@ -134,6 +140,8 @@ main() {
   set_root_password
   create_user
   configure_sudo
+
+  setup_services
 
   install_bootloader
   exit 0

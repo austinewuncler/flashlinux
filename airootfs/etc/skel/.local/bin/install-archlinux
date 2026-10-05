@@ -194,7 +194,7 @@ configure_system() {
   arch-chroot -S "$MOUNT_POINT" "/root/$CONFIGURE_SCRIPT" "$TARGET_HOSTNAME" "$USERNAME"
   rm -f "$MOUNT_POINT/root/$CONFIGURE_SCRIPT"
 
-  umount --recursive "$MOUNT_POINT"
+  umount --force --recursive "$MOUNT_POINT"
 }
 
 # --- Main --------------------------------------------------------------------
