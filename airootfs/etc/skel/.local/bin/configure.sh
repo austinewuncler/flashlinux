@@ -26,7 +26,6 @@ readonly PACKAGES=(
   btrfs-progs
   fish
   git
-  greetd
   intel-ucode
   networkmanager
   refind
@@ -124,10 +123,6 @@ install_bootloader() {
 
 # --- Main --------------------------------------------------------------------
 
-setup_services() {
-	systemctl enable greetd.service
-}
-
 main() {
   configure_pacman
   install_packages
@@ -140,8 +135,6 @@ main() {
   set_root_password
   create_user
   configure_sudo
-
-  setup_services
 
   install_bootloader
   exit 0
