@@ -3,5 +3,5 @@ function fish_greeting
     fastfetch
     lsblk
     echo
-    echo "Usage: install-archlinux <disk> <hostname> <username>"
+    echo "Usage: bootstrap-arch <disk> <hostname> <username>"
 end

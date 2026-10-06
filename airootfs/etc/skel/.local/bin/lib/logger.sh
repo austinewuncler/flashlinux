@@ -1,12 +1,5 @@
 # shellcheck shell=bash
-#
-# logger.sh: colored logging helpers. Meant to be sourced, not executed.
-#
-# Provides: log_step, log_info, log_ok, log_warning, log_error, confirm.
-# Colors are disabled when stdout isn't a terminal, NO_COLOR is set,
-# or tput can't handle the current terminal.
 
-# Guard against being sourced twice (the color variables are readonly).
 if [[ -n ${_LOGGER_LOADED:-} ]]; then
   return 0
 fi
@@ -25,7 +18,6 @@ else
 fi
 readonly RESET BOLD RED GREEN YELLOW BLUE CYAN
 
-# _log <style> <message>...
 _log() {
   local style=$1
   shift
@@ -41,8 +33,6 @@ log_ok() { _log "$GREEN" "$@"; }
 log_warning() { _log "$YELLOW" "$@"; }
 log_error() { _log "$RED" "$@" >&2; }
 
-# confirm [prompt]
-# Succeeds only if the user types exactly "yes".
 confirm() {
   local reply
   read -rp "$YELLOW$BOLD${1:-Type 'yes' to continue:}$RESET " reply

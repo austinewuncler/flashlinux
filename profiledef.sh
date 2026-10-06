@@ -13,5 +13,5 @@ airootfs_image_type="erofs"
 airootfs_image_tool_options=('-zlzma,109' -E 'ztailpacking')
 file_permissions=(
   ["/etc/shadow"]="0:0:400"
-  ["/etc/skel/.local/bin/install-archlinux"]="0:0:700"
+  ["/etc/skel/.local/bin/bootstrap-arch"]="0:0:700"
 )

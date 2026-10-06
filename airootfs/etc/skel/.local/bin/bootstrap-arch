@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+if [[ $# -ne 3 ]]; then
+  echo "Usage: ${0##*/} <disk> <hostname> <username>" >&2
+  exit 1
+fi
+
+[[ $EUID -eq 0 ]] || exec sudo -- "$0" "$@"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
+
+source "$SCRIPT_DIR/lib/logger.sh"
+source "$SCRIPT_DIR/lib/config.sh"
+source "$SCRIPT_DIR/lib/common.sh"
+source "$SCRIPT_DIR/lib/preinstall.sh"
+source "$SCRIPT_DIR/lib/disk.sh"
+source "$SCRIPT_DIR/lib/mount.sh"
+source "$SCRIPT_DIR/lib/install.sh"
+source "$SCRIPT_DIR/lib/system.sh"
+
+main() {
+  DISK=$1
+  TARGET_HOSTNAME=$2
+  USERNAME=$3
+
+  log_info "PRE-INSTALL"
+  check_internet
+  check_clock
+  check_disk
+  confirm_wipe
+
+  partition_disk
+  resolve_partitions
+  format_partitions
+  mount_filesystems
+
+  install_base
+  configure_system
+
+  log_info "Completed setup. Reboot to log into the new system"
+}
+
+main "$@"
