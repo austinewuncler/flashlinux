@@ -17,10 +17,13 @@ readonly PACKAGES=(base linux linux-firmware)
 readonly ROOT_SUBVOLUMES=(@ @home @var_cache @var_log)
 readonly DATA_SUBVOLUMES=(@data @data_appdata @data_downloads @data_media)
 
+readonly SHIM_SIGNED_PATH="/usr/share/shim-signed"
+
 readonly CHROOT_DIR_NAME="chroot"
 readonly CHROOT_ENTRY="chroot.sh"
 readonly SHIM_EFI="shimx64.efi"
 readonly MM_EFI="mmx64.efi"
+
 
 DISK=""
 TARGET_HOSTNAME=""
