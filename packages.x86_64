@@ -1,8 +1,12 @@
 base
 edk2-shell
+fish
 intel-ucode
+iwd
 linux
+linux-firmware
 memtest86+-efi
 mkinitcpio
 mkinitcpio-archiso
 pv
+sudo
