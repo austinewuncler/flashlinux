@@ -1,0 +1,8 @@
+base
+edk2-shell
+intel-ucode
+linux
+memtest86+-efi
+mkinitcpio
+mkinitcpio-archiso
+pv

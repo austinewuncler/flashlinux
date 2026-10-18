@@ -1,0 +1,50 @@
+#!/usr/bin/env fish
+
+set --global profile_dir .
+set --global work_dir /tmp/archiso-tmp
+set --global out_dir /tmp/archiso-output
+set --global iso_prefix flashlinux
+
+function die
+    echo $argv >&2
+    exit 1
+end
+
+function validate_device --argument-names device
+    test -n "$device"; or die "Usage: ./prepare-usb <device>"
+    test -b $device; or die "'$device' is not a block device"
+end
+
+function clean_work_dir
+    test -e $work_dir; or return
+    unshare --map-auto --map-root-user -- rm --force --recursive $work_dir
+    or die "Failed to remove $work_dir"
+end
+
+function build_iso
+    mkarchiso -vrw $work_dir -o $out_dir $profile_dir
+    or die "mkarchiso failed"
+end
+
+function find_iso
+    set --local newest (find $out_dir -maxdepth 1 -name "$iso_prefix-*-x86_64.iso" -printf '%T@ %p\n' | sort --numeric-sort --reverse | head --lines 1 | string replace --regex '^\S+ ' '')
+    test -n "$newest"; or die "No $iso_prefix ISO found in $out_dir"
+    echo $newest
+end
+
+function flash_iso --argument-names iso device
+    sudo dd bs=4M if=$iso of=$device conv=fsync oflag=direct status=progress
+    or die "dd failed"
+end
+
+function authenticate_sudo
+    sudo --validate; or die "sudo authentication failed"
+
+    fish --command "while kill -0 $fish_pid 2>/dev/null; sudo --non-interactive true; sleep 60; end" &
+end
+
+validate_device $argv[1]
+authenticate_sudo
+clean_work_dir
+build_iso
+flash_iso (find_iso) $argv[1]
