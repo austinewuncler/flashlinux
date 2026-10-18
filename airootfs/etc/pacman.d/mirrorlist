@@ -1,0 +1,4 @@
+Server = https://za.mirrors.cicku.me/archlinux/$repo/os/$arch
+Server = https://johannesburg.mirror.pkgbuild.com/$repo/os/$arch
+Server = https://archlinux.za.mirror.allworldit.com/archlinux/$repo/os/$arch
+Server = https://mirrors.urbanwave.co.za/archlinux/$repo/os/$arch
