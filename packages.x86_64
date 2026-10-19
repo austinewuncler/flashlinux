@@ -8,5 +8,6 @@ linux-firmware
 memtest86+-efi
 mkinitcpio
 mkinitcpio-archiso
+plymouth
 pv
 sudo
