@@ -3,6 +3,8 @@ edk2-shell
 eza
 fastfetch
 fish
+gcc
+git
 intel-ucode
 iwd
 kmscon
@@ -11,6 +13,14 @@ linux-firmware
 memtest86+-efi
 mkinitcpio
 mkinitcpio-archiso
+neovim
+nodejs-lts-krypton
+npm
 plymouth
 pv
+ripgrep
+rust
 sudo
+unzip
+wget
+xdg-utils
