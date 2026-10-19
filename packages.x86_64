@@ -1,5 +1,7 @@
 base
 edk2-shell
+eza
+fastfetch
 fish
 intel-ucode
 iwd
