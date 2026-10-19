@@ -3,6 +3,7 @@ edk2-shell
 fish
 intel-ucode
 iwd
+kmscon
 linux
 linux-firmware
 memtest86+-efi
