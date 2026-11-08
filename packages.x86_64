@@ -1,4 +1,7 @@
+arch-install-scripts
 base
+btrfs-progs
+dosfstools
 edk2-shell
 eza
 fastfetch
@@ -14,10 +17,12 @@ memtest86+-efi
 mkinitcpio
 mkinitcpio-archiso
 neovim
-nodejs-lts-krypton
+nodejs
 npm
+parted
 plymouth
 pv
+reflector
 ripgrep
 rust
 sudo

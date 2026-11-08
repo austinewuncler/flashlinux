@@ -5,14 +5,62 @@ set --global work_dir /tmp/archiso-tmp
 set --global out_dir /tmp/archiso-output
 set --global iso_prefix flashlinux
 
+set --global data_home $HOME/.local/share
+set --query XDG_DATA_HOME; and set data_home $XDG_DATA_HOME
+set --global key_dir $data_home/flashlinux-secureboot
+set --global sb_key $key_dir/MOK.key
+set --global sb_cert $key_dir/MOK.crt
+set --global sb_cer $key_dir/MOK.cer
+set --global shim_dir /usr/share/shim-signed
+set --global esp_mnt ""
+set --global iso_mnt ""
+
 function die
     echo $argv >&2
     exit 1
 end
 
+function cleanup --on-event fish_exit
+    for mnt in $esp_mnt $iso_mnt
+        test -n "$mnt"; or continue
+        mountpoint -q $mnt; and sudo umount $mnt
+        rmdir $mnt 2>/dev/null
+    end
+end
+
 function validate_device --argument-names device
     test -n "$device"; or die "Usage: ./prepare-usb <device>"
     test -b $device; or die "'$device' is not a block device"
+end
+
+function require_prerequisites
+    for cmd in openssl sbsign sbverify lsblk partprobe mountpoint mount umount mktemp find cmp mkarchiso
+        command --query $cmd; or die "Missing required command: $cmd"
+    end
+
+    for file in shimx64.efi mmx64.efi
+        test -f $shim_dir/$file; or die "Missing $shim_dir/$file (install shim-signed from the AUR)"
+    end
+end
+
+function ensure_keys
+    if not test -f $sb_key -a -f $sb_cert
+        echo "Generating Secure Boot signing key in $key_dir"
+        mkdir --parents --mode 700 $key_dir; or die "Failed to create $key_dir"
+        openssl req -newkey rsa:2048 -nodes -keyout $sb_key -new -x509 -sha256 -days 3650 \
+            -subj "/CN=flashlinux Secure Boot/" -addext "extendedKeyUsage=codeSigning" -out $sb_cert
+        or die "Key generation failed"
+        chmod 600 $sb_key
+    end
+
+    test -f $sb_cer; or openssl x509 -outform DER -in $sb_cert -out $sb_cer
+    or die "Failed to export $sb_cer"
+end
+
+function authenticate_sudo
+    sudo --validate; or die "sudo authentication failed"
+
+    fish --command "while kill -0 $fish_pid 2>/dev/null; sudo --non-interactive true; sleep 60; end" &
 end
 
 function clean_work_dir
@@ -27,24 +75,97 @@ function build_iso
 end
 
 function find_iso
-    set --local newest (find $out_dir -maxdepth 1 -name "$iso_prefix-*-x86_64.iso" -printf '%T@ %p\n' | sort --numeric-sort --reverse | head --lines 1 | string replace --regex '^\S+ ' '')
+    set --local newest (find $out_dir -maxdepth 1 -name "$iso_prefix-*-x86_64.iso" -printf '%T@ %p\n' \
+        | sort -nr | head -n 1 | string replace -r '^\S+ ' '')
     test -n "$newest"; or die "No $iso_prefix ISO found in $out_dir"
     echo $newest
 end
 
-function flash_iso --argument-names iso device
+function flash_iso -a iso device
     sudo dd bs=4M if=$iso of=$device conv=fsync oflag=direct status=progress
     or die "dd failed"
 end
 
-function authenticate_sudo
-    sudo --validate; or die "sudo authentication failed"
-
-    fish --command "while kill -0 $fish_pid 2>/dev/null; sudo --non-interactive true; sleep 60; end" &
+function find_esp --argument-names device
+    lsblk -rpno NAME,TYPE,PARTTYPE $device | while read -l name kind parttype
+        test "$kind" = part; or continue
+        if contains -- $parttype c12a7328-f81f-11d2-ba4b-00a0c93ec93b 0xef
+            echo $name
+        end
+    end
 end
 
-validate_device $argv[1]
+function find_iso_partition --argument-names device
+    lsblk -rpno NAME,TYPE,FSTYPE $device | while read -l name kind fstype
+        test "$kind" = part; and test "$fstype" = iso9660; and echo $name
+    end
+end
+
+function refresh_boot_files
+    set --local kernels (find $esp_mnt -name 'vmlinuz-*')
+    test (count $kernels) -gt 0; or die "No kernel found on the EFI partition"
+
+    for kernel in $kernels
+        set --local rel (string replace $esp_mnt '' $kernel)
+        test -f $iso_mnt$rel; or die "No copy of $rel on the ISO partition"
+
+        for file in (find (dirname $kernel) -maxdepth 1 -type f ! -name 'vmlinuz-*')
+            set --local file_rel (string replace $esp_mnt '' $file)
+            cmp --silent $file $iso_mnt$file_rel; and continue
+            sudo cp $iso_mnt$file_rel $file
+            or die "Failed to copy $file_rel (is the EFI partition too small?)"
+        end
+
+        sudo sbsign --key $sb_key --cert $sb_cert --output $kernel $iso_mnt$rel
+        or die "Failed to sign $rel (is the EFI partition too small?)"
+        sbverify --cert $sb_cert $kernel >/dev/null
+        or die "Signature check failed for $rel"
+    end
+end
+
+function install_shim_chain
+    set --local boot $esp_mnt/EFI/BOOT
+    test -f $boot/BOOTx64.EFI; or die "No EFI/BOOT/BOOTx64.EFI on the EFI partition (is the profile using systemd-boot?)"
+
+    sudo sbsign --key $sb_key --cert $sb_cert --output $boot/grubx64.efi $boot/BOOTx64.EFI
+    or die "Failed to sign the boot loader"
+    sudo cp $shim_dir/shimx64.efi $boot/BOOTx64.EFI; or die "Failed to install shim"
+    sudo cp $shim_dir/mmx64.efi $boot/mmx64.efi; or die "Failed to install MokManager"
+    sudo cp $sb_cer $boot/MOK.cer; or die "Failed to copy the MOK certificate"
+end
+
+function enable_secure_boot -a device
+    sudo partprobe $device; or die "partprobe failed on $device"
+    sudo udevadm settle
+
+    set --local esp (find_esp $device | head -n 1)
+    test -n "$esp"; or die "No EFI system partition found on $device"
+    set --local iso_part (find_iso_partition $device | head --lines 1)
+    test -n "$iso_part"; or die "No ISO 9660 partition found on $device"
+
+    set --global esp_mnt (mktemp --directory)
+    set --global iso_mnt (mktemp --directory)
+    sudo mount $esp $esp_mnt; or die "Failed to mount $esp"
+    sudo mount --options ro $iso_part $iso_mnt; or die "Failed to mount $iso_part"
+
+    refresh_boot_files
+    install_shim_chain
+
+    sync
+    sudo umount $esp_mnt; or die "Failed to unmount $esp_mnt"
+
+    echo
+    echo "Secure Boot setup done. On first boot, MokManager will appear:"
+    echo "  Enroll key from disk -> EFI/BOOT/MOK.cer -> Continue -> reboot"
+end
+
+set --local device $argv[1]
+
+validate_device $device
+require_prerequisites
+ensure_keys
 authenticate_sudo
 clean_work_dir
 build_iso
-flash_iso (find_iso) $argv[1]
+flash_iso (find_iso) $device
+enable_secure_boot $device
