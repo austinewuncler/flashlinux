@@ -16,14 +16,13 @@ set --global DEFAULT_EDITOR nvim
 set --global SERVICES NetworkManager.service systemd-timesyncd.service fstrim.timer
 
 set --global SECURE_BOOT true
-set --global SHIM_AUR_PACKAGE shim-signed
+set --global SHIM_AUR_PACKAGE shim-signed-bin
 set --global SHIM_AUR_REF ""
 
 set --global TEMP_PATHS
 
 set --global REFIND_THEME_REPO https://github.com/blackma9ick/refind.git
 set --global REFIND_THEME_REF c0bf9f7af28b258bde543eaaf39b0efea693a369
-set --global REFIND_THEME_VARIANT main
 
 set --global SUBVOLUMES \
     @:/ \

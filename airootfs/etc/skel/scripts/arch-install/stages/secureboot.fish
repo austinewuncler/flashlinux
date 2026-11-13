@@ -11,12 +11,14 @@ function install_shim --argument-names username
     run rm --recursive --force "$host_dir"
     chroot_run $as_user mkdir --parents "$aur_dir"
     chroot_run $as_user git clone --quiet "https://aur.archlinux.org/$pkg.git" "$aur_dir/$pkg"
+
     if test -n "$SHIM_AUR_REF"
         chroot_run $as_user git -C "$aur_dir/$pkg" checkout --quiet "$SHIM_AUR_REF"
     end
 
     log_warning "AUR packages are unvetted. This PKGBUILD runs as '$username' and its output is installed as root:"
     cat "$host_dir/$pkg/PKGBUILD"
+
     confirm "Build and install '$pkg'?"
     or fail_and_exit "Aborted: '$pkg' was not approved."
 
@@ -27,15 +29,18 @@ function install_shim --argument-names username
 
     rm --recursive --force -- "$host_dir" "$sudoers"
     set --global TEMP_PATHS
+
     log_success "Installed '$pkg'."
 end
 
 function locate_shim
-    set -l shim (arch-chroot "$MOUNT_POINT" pacman -Qlq "$SHIM_AUR_PACKAGE" | string match --regex '^/.*/shimx64\.efi$')
+    set --local shim (arch-chroot "$MOUNT_POINT" pacman -Qlq "$SHIM_AUR_PACKAGE" | string match --regex '^/.*/shimx64\.efi$')
+
     test (count $shim) -eq 1
     or fail_and_exit "Could not find shimx64.efi in the files of '$SHIM_AUR_PACKAGE'."
 
     set --local dir (dirname "$shim")
+
     test -e "$MOUNT_POINT$dir/mmx64.efi"; or test -e "$MOUNT_POINT$dir/MokManager.efi"
     or fail_and_exit "No MokManager (mmx64.efi) next to '$shim'."
 
@@ -46,6 +51,7 @@ function setup_kernel_signing
     log_step "Setting up kernel signing for Secure Boot..."
 
     set --local keys /etc/refind.d/keys
+
     for key_file in refind_local.key refind_local.crt refind_local.cer
         test -f "$MOUNT_POINT$keys/$key_file"
         or fail_and_exit "'$keys/$key_file' is missing; did refind-install --localkeys run?"
@@ -86,13 +92,22 @@ end
 
 function enroll_mok
     log_step "Queueing the signing key for MOK enrollment..."
-    arch-chroot "$MOUNT_POINT" mokutil --import /etc/refind.d/keys/refind_local.cer --root-pw
-    and log_success "Key queued for enrollment."
-    or log_warning "mokutil could not queue the key. At first boot choose 'Enroll key from disk' and select EFI/refind/keys/refind_local.cer."
+    log_warning "Choose a one-time password for MokManager (it is only used at the next boot)."
+
+    while not arch-chroot "$MOUNT_POINT" mokutil --import /etc/refind.d/keys/refind_local.cer
+        confirm "mokutil could not queue the key. Try again?"
+        or begin
+            log_warning "Skipped. Later, from the installed system, run: sudo mokutil --import /etc/refind.d/keys/refind_local.cer"
+            return 0
+        end
+    end
+
+    log_success "Key queued for enrollment."
 end
 
 function print_secure_boot_steps
     log_warning "Secure Boot: finish setup at the first boot"
+
     echo "  1. MokManager appears: Enroll MOK -> Continue -> Yes -> enter the ROOT password -> Reboot."
     echo "  2. Enter the firmware setup and enable Secure Boot."
     echo "  If MokManager does not appear: Enroll key from disk -> EFI/refind/keys/refind_local.cer."

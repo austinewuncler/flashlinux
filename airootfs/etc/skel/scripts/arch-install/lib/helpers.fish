@@ -1,7 +1,9 @@
 function release_mount
     set --local gnupg "$MOUNT_POINT/etc/pacman.d/gnupg"
+
     test -d "$gnupg"
     and gpgconf --homedir "$gnupg" --kill all 2>/dev/null
+
     return 0
 end
 
@@ -31,7 +33,7 @@ function run
 end
 
 function usage
-    echo "Usage: $SCRIPT_NAME [-y|--yes] [-s|--shell] [-h|--help] <disk> <hostname> <username>"
+    echo "Usage: $SCRIPT_NAME [-h|--help] <disk> <hostname> <username>"
 end
 
 function partition_path --argument-names disk number

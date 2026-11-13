@@ -14,8 +14,7 @@ for module in \
 end
 
 function main
-    argparse --name "$SCRIPT_NAME" h/help y/yes s/shell -- $argv
-    or begin
+    argparse --name "$SCRIPT_NAME" h/help -- $argv; or begin
         usage >&2
         exit 2
     end
@@ -33,19 +32,16 @@ function main
     set --local disk (realpath -- "$argv[1]" 2>/dev/null; or echo "$argv[1]")
     set --local target_hostname "$argv[2]"
     set --local username "$argv[3]"
-    set --local assume_yes
-    set --query _flag_yes; and set assume_yes 1
 
     log_header PRE-INSTALLATION
 
     validate_names "$target_hostname" "$username"
-    validate_theme
     validate_secure_boot
     check_uefi
     validate_disk "$disk"
     check_network
     sync_clock
-    confirm_wipe "$disk" "$assume_yes"
+    confirm_wipe "$disk"
     partition_disk "$disk"
     format_partitions "$disk"
     mount_filesystems "$disk"
@@ -53,11 +49,11 @@ function main
     install_base
     generate_fstab
     configure_system "$disk" "$target_hostname" "$username"
-    set --query _flag_shell
-    and enter_chroot
+    enter_chroot
     unmount_filesystems
 
     log_success "Done. You can reboot now."
+
     if test "$SECURE_BOOT" = true
         print_secure_boot_steps
     end
